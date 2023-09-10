@@ -1,0 +1,502 @@
+---
+# Report details
+report-series: "University of Adelaide Biometry Hub \\ \\large Technical Report Series"
+report-number: "SS001"
+title: "\\Huge The Benefits of Pixel-Level Image Analysis and Annotation (PAA) on Sampling Accuracy"
+subtitle: "\\large Report for <MATHS 7097>"
+author: "Agula"
+job-title: 
+address: 
+email: "a1867196@adelaide.edu.au"
+date: "`r format(Sys.time(), '%m, %d, %Y')`"
+
+# List logos here as the filename without extension
+logos:
+  - assets/UoA
+  - assets/bhub
+
+#Latex options
+documentclass: article  # Alternatively book for chapters that start new pages
+classoption:
+  - oneside
+  - 12pt
+header-includes:
+  - \usepackage{bbm}
+  - \usepackage{caption}
+  - \captionsetup[figure]{labelfont=bf, font=tiny}
+  - \usepackage{hyperref}
+  - \usepackage{bookmark}
+bibliography: references.bib
+csl: assets/biometrics.csl
+knit: yes
+number-sections: yes
+toc: yes
+link-citations: true
+output:
+  bookdown::pdf_document2:
+    keep_tex: yes
+    latex_engine: xelatex
+    template: assets/SAGI_markdown.tex
+  always_allow_html: true
+---
+```{r knitr_options, include=FALSE}
+library(rmarkdown)
+library(xtable)
+library(htmltools)
+library(DiagrammeR)
+library(kableExtra)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+options(formatR.arrow=FALSE, xtable.comment=FALSE)
+knitr::opts_chunk$set(fig.path='figure/Rplots-',
+                      fig.align='center',
+                      fig.show='hold',
+                      comment=NA,
+                      background='white',
+                      highlight=FALSE,
+                      tidy=TRUE,
+                      tidy.opts=list(width.cutoff=60),
+                      size= "small",
+                      prompt=TRUE)
+```
+\mainmatter
+\pagestyle{fancy}
+<!-- article class-->
+# Abstract  
+**Background:** The process of enhancing the value of found data is a challenging endeavor. Particularly, numerous challenges arise during the process of transforming aerial images captured by drones (also referred to as found data) into data suitable for sampling research. One of the challenges is the lack of auxiliary tools to facilitate the different segmentation of manually processed images with marked points into grids and accurately obtain statistical data for each grid under respective segmentation conditions. Due to the absence of such tools, it is necessary to manually count the marked points in the images under each segmentation condition during the sampling exploration process, resulting in a significant waste of time and an inability to ensure data quality, ultimately affecting the results of the sampling investigation.   
+**Result:** In this research, I introduce the Pixel-Level Image Analysis and Annotation (PAA), which is a novel software tool. Based on pixel principles, it has the capability to automatically segment manually labeled images according to predefined criteria and accurately obtain statistical data related to the annotations. To develop this software tool, I employed the GIMP image processing software to perform pixel-level analysis and manual annotation of images. Simultaneously, I utilized Python to extract and explore color information from specific pixel blocks. A comparative analysis of PAA with the previous method (PM) in terms of image recognition sensitivity revealed the superiority of PAA over PM, indicating that the data obtained by PAA is more accurate. Furthermore, a comparison of the workflow between PAA and PM demonstrated PAA's advantages, signifying its superior capability to handle large volumes of data. Additionally, when applying the data obtained by PAA and PM separately to sampling investigations, the results using PAA data were found to be superior to those obtained using PM data.  
+**Conclusions:** PAA outperforms PM in the realm of image processing. Utilizing PAA allows for obtaining more accurate and abundant data for sampling investigations, leading to improved efficiency.
+  
+**Keywords:** PAA, PM, Sampling, pixel, recognition sensitivity
+
+# Introduction
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In seeking the optimal sampling method for effectively analyzing specific agricultural fields, one approach is to initially employ drones for aerial photography to obtain cost-effective image data, often referred to as 'found data.' Subsequently, valuable data can be extracted from these images for use in sampling research. 
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The previous method (PM) for data acquisition involved initially utilizing computer programs to partition images into grids, followed by manual analysis of each grid to extract specific data, such as the count of emerging faba bean plants or weed density within each grid. During the grid analysis process, many situations couldn't be automated by computer programs. For instance, when dividing a image 'A' into a 10x10 grid, the 10x10 grids required manual analysis. If the image 'A' was subsequently divided into a 10x20 grid, there is a need for manual reanalysis of the newly formed 10x20 grids. This serves as an illustrative example of two different segmentation approaches for a single image. It is easy to envision that analyzing numerous segmentation variations for thousands of images would consume a significant amount of time, financial resources, and human effort.  
+  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Also, many scenarios cannot be accurately addressed through automated computer programs and manual works. For instance, as depicted in the __Fig.\ref{fig:figure1}__ below, faba bean plants are located at the grid's perimeter, computers face challenges in accurately identifying them automatically, necessitating manual recognition and counting. The process of manual recording introduces numerous errors, such as missing counts or inadvertently recording the same faba bean plant at the edge of multiple grids. It's conceivable that analyzing thousands of such grids could substantially impact data accuracy and diminish the reliability of experimental results based on such data.  
+
+\begin{figure}[h]
+\centering
+\includegraphics{figure1.png}
+\caption {\tiny The area enclosed by the blue circle represents instances of plant images that cannot be recognized by the machine after image segmentation and are separated by grid edges. It can be observed that even the red marker points are also segmented.}
+\label{fig:figure1}
+\end{figure}
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The Pixel-Level Analysis and Annotation (PAA) method is employed to tackle the aforementioned challenges.
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The terminology 'pixel,' derived from 'picture element,' made its debut in 1965 through separate articles within SPIE Proceedings, authored by Fred C. Billingsley from Caltech’s Jet Propulsion Laboratory. \hyperref[ref1]{[1]} An image can be defined with its horizontal dimension termed as 'width,' equivalent to the number of pixel columns denoted by 'm' and its vertical dimension termed as 'height,' equivalent to the number of pixel rows represented by 'n'. In other words, an image is composed of pixel blocks as its fundamental units, organized into a grid of m columns and n rows. Those pixels blocks are colored by rules, with the most common color definition rule being RGB, which is also the rule employed in this article. RGB stands for Red, Green, Blue, also known as the Primary Colors. It digitizes the lightness or darkness of each color (with values ranging from 0 to 255) and creates other colors through the combination of varying degrees of these three colors. For example, pure red is represented as (255, 0, 0), pure green as (0, 255, 0), and pure blue as (0, 0, 255).
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PAA is derived from the principles of image described above. It is a technique that enhances data accuracy and acquisition efficiency by analyzing and labeling specific pixel blocks used to compose images, operating at the pixel level. For example, in the image depicted in __Fig.\ref{fig:figure2}__, there is a faba bean, and when zoomed in to the pixel level, 
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.2\linewidth]{figure4.png}
+  \caption {\tiny This is a screenshot of a single faba bean plant extracted from an image.}
+  \label{fig:figure2}
+\end{figure}
+
+it resembles the effect shown in __Fig.\ref{fig:figure3}__, composed of multiple green pixel blocks of varying shades. 
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.2\linewidth]{figure5.png}
+  \caption {\tiny Enlarge Fig.2 to an image that is pixel clear and visible.}
+  \label{fig:figure3}
+\end{figure}
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Similarly, as seen in __Fig.\ref{fig:figure4}__, what appears to be a regular red marker point is, at the pixel level in __Fig.\ref{fig:figure5}__, a region comprised of red pixel blocks of different shades. 
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.2\linewidth]{figure6.png}
+  \caption {\tiny Marking a single faba bean plant using the PM method.}
+  \label{fig:figure4}
+\end{figure}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.2\linewidth]{figure7.png}
+  \caption {\tiny Enlarge Fig.4 to an image that is pixel clear and visible.}
+  \label{fig:figure5}
+\end{figure}
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Since image segmentation is performed at the pixel level, there is a high probability that this red marker region will be fragmented into multiple areas and allocated to different grids during the cutting process, which poses significant challenges for subsequent statistical analysis. By marking individual pixels in red, as shown in __Fig.\ref{fig:figure6}__, this problem can be effectively resolved, while the difficulty of implementing the recognition and statistics of individual pixel marker points is lower compared to recognizing and analyzing pixel marker regions.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.2\linewidth]{figure8.png}
+  \caption {\tiny Marking a individual pixel in red}
+  \label{fig:figure6}
+\end{figure}
+
+# Methods
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This section will provide a comparative analysis between PAA and PM in three aspects, serving as evidence to substantiate the proposed argument.
+
+## Sensitivity to image details
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The differences in image magnification levels result in variations in statistical data. In PM processes, images used are similar to __Fig.\ref{fig:figure7}__. 
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.2\linewidth]{figure12.png}
+  \caption {\tiny A visual representation without pixel enlargement.}
+  \label{fig:figure7}
+\end{figure}
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Taking __Fig.\ref{fig:figure7}__ as an example, an quick intuitive statistical analysis yields a result of no faba bean plants in the image with a low weed density.
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;When the __Fig.\ref{fig:figure7}__ is magnified, zooming in to the point where each pixel block is clearly visible, as shown in __Figure.\ref{fig:figure8}__ and __Figure.\ref{fig:figure9}__ On this occasion, it is quite evident that there are four green faba bean plants in the image, and the weed density appears to be minimal.
+
+\newpage
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.2\linewidth]{figure13_1.png}
+  \caption {\tiny Enlarge Fig.7 to an image that is pixel clear and visible.(part 1)}
+  \label{fig:figure8}
+\end{figure}  
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.2\linewidth]{figure13_2.png}
+  \caption {\tiny Enlarge Fig.7 to an image that is pixel clear and visible.(part 2)}
+  \label{fig:figure9}
+\end{figure}
+ 
+## Efficiency in data processing and collection
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Create two data acquisition and collection process flowcharts, one for PM and one for PAA :
+
+* PM is shown in __Fig.\ref{fig:figure10}__ :
+  
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.6\linewidth]{figure14.png}
+  \caption {\tiny The flowchart for PM}
+  \label{fig:figure10}
+\end{figure}
+
+\newpage
+* PAA is shown in __Fig.\ref{fig:figure11}__ :
+  
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.6\linewidth]{figure15.png}
+  \caption {\tiny The flowchart for PAA}
+  \label{fig:figure11}
+\end{figure}
+
+## The accuracy for sampling predictions
+  
+**Step One - Data Preparation**
+
+1) The images are acquired by randomly selecting two plots from the entire farmland, identified by their respective locations:  
+col10row8  
+col5 row2  
+
+2) Each plot has images captured on three different dates:  
+col10row8_day1, col10row8_day2, col10row8_day3;  
+col5 row2_day1, col5 row2_day2, col5 row2_day3  
+
+3) Running __Python1__ \hyperref[ref2]{[2]} (As shown in __Fig.\ref{fig:figure12}__ ) to observe the length and width of the images in terms of pixels:  
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.6\linewidth]{figure16.jpg}
+  \caption {\tiny The usage of Python1}
+  \label{fig:figure12}
+\end{figure}
+
+col10row8_day1 width, height = 1739, 4921;  
+col10row8_day2 width, height = 1998, 6012;   
+col10row8_day3 width, height = 1980, 5940;  
+col5 row2_day1 width, height = 1680, 5004;  
+col5 row2_day2 width, height = 1962, 5994;  
+col5 row2_day3 width, height = 1819, 5977;  
+
+4) Based on 3), formulate two appropriate segmentation rules: 
+
+Cut1: Split the image in a 5   by 10.  
+Cut2: Split the image in a 10  by 12.   
+  
+5) Based on 4), process the images separately using PAA and PM, and obtain the count data of faba beans.  
+
+* PAA
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;By adjusting the internal segmentation parameters of __PAApython__ \hyperref[ref3]{[3]}, it can automatically cut the images based on the 4) rules and count the number of red pixel annotations in each resulting grid. Ultimately, it generates a CSV file containing the statistical results. The CSV file contains a portion of its content as shown in __Fig.\ref{fig:figure13}__ . 
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.6\linewidth]{figure17.jpg}
+  \caption {\tiny The CSV detials}
+  \label{fig:figure13}
+\end{figure}
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Where 'Filename' represents the image name, 'Row' and 'Col' respectively denote the position of the grid under that image name, 'Z_Sum' signifies the count of red marker points in that grid, and 'D' represents the density of weeds within that grid.
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;By using __pythoncheck__ \hyperref[ref4]{[4]} to verify the accuracy of __PAApython__ \hyperref[ref3]{[3]} results and to identify potential data loss situations.
+
+The following is the list of the output data (Shown in __Fig.\ref{fig:figure14}__ ): 
+  
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.6\linewidth]{figure18.jpg}
+  \caption {\tiny The list of for output data}
+  \label{fig:figure14}
+\end{figure}
+  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In this list, PAApython1 to PAApython6 represent __PAApython__ \hyperref[ref3]{[3]} with different parameters' condition, check1 to check6 represent __pythoncheck__ \hyperref[ref4]{[4]} with different parameters' condition for PAApython1 to PAApython6, and PAAdata1 to PAAdata6 represent the obtained data CSV files.(The specific data and code have been uploaded to __file1__ \hyperref[ref5]{[5]})
+
+* PM
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;By adjusting the internal segmentation parameters of __peatear.py__ \hyperref[ref6]{[6]}, it can automatically divide the images based on the 4) rules and generates a CSV file containing the machine learning statistical results. Subsequently, manually count the number of faba beans in each segmented grid and add these count results to a CSV file.
+  
+The CSV file contains a portion of its content as shown in __Fig.\ref{fig:figure15}__.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.6\linewidth]{figure19.jpg}
+  \caption {\tiny The CSV detials}
+  \label{fig:figure15}
+\end{figure}
+
+Where:  
+- 'row' and 'column' are used to define grids position;       
+- 'samples' is the number of recognized faba beans in each grid;   
+- 'D' is weed density;  
+- 'HC' is the number of hand count faba beans inside each grid (Exclude the parts that have been automatically counted by the machine.);    
+- 'HR' is the number of hand count faba beans on each grid edges(Exclude the parts that have been automatically counted by the machine.);    
+- 'MH' represents the number of faba beans identified manually and by the machine together.    
+
+The following is the list of the output data (Shown in __Fig.\ref{fig:figure16}__ ): 
+  
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.6\linewidth]{figure20.jpg}
+  \caption {\tiny The list of for output data}
+  \label{fig:figure16}
+\end{figure}  
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In this list, data1 to data12 represent the obtained data CSV files. (The specific data and code have been uploaded to __file1__ \hyperref[ref5]{[5]})
+  
+**Step Two - Sampling with two different data**
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The principle utilized in sampling is the central limit theorem (CLT). Utilize the following example as a demonstration of usage:
+
+- Each complete plot image __Fig.\ref{fig:figure17}__ can be subdivided into multiple grids __Fig.\ref{fig:figure18}__. 
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.6\linewidth]{figure10.jpg}
+  \caption {\tiny One complete plot image}
+  \label{fig:figure17}
+\end{figure} 
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.6\linewidth]{figure11.jpg}
+  \caption {\tiny The segmented image}
+  \label{fig:figure18}
+\end{figure} 
+  
+- Given that the number of faba bean seedlings in a picture similar to __Fig.\ref{fig:figure17}__ is N, The image similar to __Fig.\ref{fig:figure17}__ is divided into M grids, similar to those depicted in __Fig.\ref{fig:figure18}__. Then the population's overall expected value (average) for __Fig.\ref{fig:figure17}__ is represented by \(\mu\) = N/M.
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; By __CLT__ \hyperref[ref7]{[7]}, let X~1~, X~2~, X~3~, ... , X~n~ denote the samples drawn from an image similar to __Fig.\ref{fig:figure18}__ and $$X_n = {\{x_1, x_2, x_n, ...,x_n}\}$$ where i is the sample size of sample X~n~. Let \(\bar{X}_n\) denote the sample mean of sample X~n~ and
+$$\bar{X}_n = \frac{1}{n}(x_1 + x_2 + x_3 + \ldots + x_i)$$ then we get  \(\bar{X}_1\), \(\bar{X}_2\), \(\bar{X}_3\),..., \(\bar{X}_n\), and mean of sample mean is $$\bar{\bar{X}}_n = \frac{1}{n}(\bar{X}_1+\bar{X}_2+\bar{X}_3+ \ldots +\bar{X}_n)$$ As \(n \rightarrow \infty\), the value of \(\bar{\bar{X}}_n\) approaches a normal distribution with \(\hat{\mu}\) and \(\hat{\mu}\) converges to the population mean \(\mu\). 
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;It's important to note that the mean of sample mean is calculated based on the sample data we provide. If the sample data is not accurate, it can result in significant bias between the estimated value \(\hat{\mu}\) and the true value \(\mu\).  
+    
+For following sampling method:  
+
+1, Simple Random Sampling with replacement with sample_size <- 5 , num_samples <- 1:1000  
+2, Simple Random Sampling with replacement with sample_size <- 10 , num_samples <- 1:1000  
+By doing:  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Utilize __R code1__\hyperref[ref8]{[8]}, and modify the parameters to create R code1_1 to R code1_6. Perform sampling tests on PAAdata1 to PAAdata6 separately and generate corresponding charts.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;And, utilize __R code2__\hyperref[ref9]{[9]}, and adjust the parameters to create R code2_1 to R code2_12. Perform sampling tests on data1 to data12 individually and generate corresponding charts.
+
+3, Simple Random Sampling without replacement with sample_size <- 5 , num_samples <- 1:1000  
+4, Simple Random Sampling without replacement with sample_size <- 10 , num_samples <- 1:1000  
+By doing:  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Utilize __R code3__\hyperref[ref10]{[10]}, and modify the parameters to create R code1_1 to R code1_6. Perform sampling tests on PAAdata1 to PAAdata6 separately and generate corresponding charts.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;And, utilize __R code4__\hyperref[ref11]{[11]}, and adjust the parameters to create R code2_1 to R code2_12. Perform sampling tests on data1 to data12 individually and generate corresponding charts.
+  
+5, Stratified Sampling with replacement with sample_size <- 5 , num_samples <- 1:1000  
+6, Stratified Sampling with replacement with sample_size <- 10 , num_samples <- 1:1000  
+By doing:  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Utilize __R code5__\hyperref[ref12]{[12]}, and modify the parameters to create R code1_1 to R code1_6. Perform sampling tests on PAAdata1 to PAAdata6 separately and generate corresponding charts.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;And, utilize __R code6__\hyperref[ref13]{[13]}, and adjust the parameters to create R code2_1 to R code2_12. Perform sampling tests on data1 to data12 individually and generate corresponding charts.
+  
+7, Stratified Sampling without replacement with sample_size <- 5 , num_samples <- 1:1000  
+8, Stratified Sampling without replacement with sample_size <- 10 , num_samples <- 1:1000  
+By doing:  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Utilize __R code7__\hyperref[ref14]{[14]}, and modify the parameters to create R code1_1 to R code1_6. Perform sampling tests on PAAdata1 to PAAdata6 separately and generate corresponding charts.   
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;And, utilize __R code8__\hyperref[ref15]{[15]}, and adjust the parameters to create R code2_1 to R code2_12. Perform sampling tests on data1 to data12 individually and generate corresponding charts.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;All the above experimental codes and results have been compiled and uploaded to __file1__ \hyperref[ref5]{[5]}.  
+  
+# Result  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Part one of the method demonstrates that, even when using the same image, there can be variations in the statistical data. Analyzing images at the pixel level enhances the visibility of these details and increases sensitivity in recognizing them compared to the previous method.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In part two of the method, when comparing the flowcharts of both methods, it becomes apparent that PAA primarily requires manual intervention during the initial image labeling process, with all other subsequent steps being automated through computer programs. In contrast, the previous method relies on manual counting for each step of the process. This not only consumes a significant amount of time but also, as highlighted in the first section of the method, leads to a decline in data accuracy as the number of processed images increases.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In part three of the method:  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Based on the 8 scenarios outlined in the method, a total of 8 sets of image comparisons were obtained. The sets of images marked with yellow are the results of sampling using data obtained through the PAA method. In each column, different plot segmentation conditions are represented, while each row corresponds to day 1 to day 3. And, the sets of images marked with green are the results of sampling using data obtained through the PM method. Each row still represents day 1 to day 3. However, each column is different from the image sets marked with yellow. In order to compare the results considering edge statistics and not considering edge statistics, an additional column has been added as a comparison. Specifically, the two columns with the same title: the left column represents considering edge statistics, and the right column represents not considering edge statistics.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The following is the details for the results of each group(The specific chart is located within the __Result_Chart__\hyperref[ref17]{[17]}.):  
+1.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;When using the data obtained through the PAA in Simple Random Sampling with replacement, with a sample size equal to 5 and the number of samples ranging from 1 to 1000, the following four scenarios exhibit the same pattern:  
+Images with col10 row8, cut1 combination.  
+Images with col5 row2, cut1 combination.  
+Images with col10 row8, cut2 combination.  
+Images with col5 row2, cut2 combination.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In all of these cases, it is observed that as the number of samples extracted increases from day 1 to day 3, the mean of the sample means ultimately converges to the true mean.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;When using the data obtained through the PM in Simple Random Sampling with replacement, with a sample size equal to 5 and the number of samples ranging from 1 to 1000, the following four scenarios exhibit the same pattern:  
+Images with col10 row8, cut1 combination.  
+Images with col5 row2, cut1 combination.  
+Images with col10 row8, cut2 combination.  
+Images with col5 row2, cut2 combination.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In all of these cases, it is observed that when edge factors are taken into account, from day 1 to day 3, as the number of samples extracted increases, the mean of the sample means will eventually converge to a specific mean. Initially, this mean is not significantly different from the true mean, but as time progresses, the deviation gradually becomes larger. However, when edge factors are not considered, from day 1 to day 3, as the number of samples extracted increases, the mean of the sample means will also eventually converge to a specific mean. Nonetheless, initially, this mean is significantly different from the true mean, and as time passes, the deviation becomes even larger.  
+2.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;When using the data obtained through the PAA in Simple Random Sampling with replacement, with a sample size equal to 10 and the number of samples ranging from 1 to 1000, the following four scenarios exhibit the same pattern:  
+Images with col10 row8, cut1 combination.  
+Images with col5 row2, cut1 combination.  
+Images with col10 row8, cut2 combination.  
+Images with col5 row2, cut2 combination.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In all of these cases, from day 1 to day 3, it consistently shows that as the number of samples extracted increases, the mean of the sample means eventually converges to the true mean. Compared to the condition with a sample size of 5, there is a reduction in the variance between the mean of the sample means and the true mean. This suggests that the predicted values are more likely to be close to the true mean.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;When using the data obtained through the PM in Simple Random Sampling with replacement, with a sample size equal to 10 and the number of samples ranging from 1 to 1000, the following four scenarios exhibit the same pattern:  
+Images with col10 row8, cut1 combination.  
+Images with col5 row2, cut1 combination.  
+Images with col10 row8, cut2 combination.  
+Images with col5 row2, cut2 combination.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In all of these cases, when considering edge factors, it is observed that from day 1 to day 3, as the number of samples extracted increases, the mean of the sample means eventually converges to a specific mean. Initially, this mean is not significantly different from the true mean, but as time progresses, the deviation gradually becomes larger. 
+Compared to the condition with a sample size of 5, there is a reduction in the variance between the mean of the sample means and the true mean. This implies that the predicted values are more likely to be close to the mean. Conversely, when not considering edge factors, it is still observed that from day 1 to day 3, as the number of samples extracted increases, the mean of the sample means eventually converges to a specific mean. However, initially, this mean is significantly different from the true mean, and as time goes on, the deviation becomes even larger. Similarly, there is a reduction in the variance between the mean of the sample means and the true mean, suggesting that the predicted values are more likely to be close to the mean.  
+3.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;When using the data obtained through the PAA in Simple Random Sampling without replacement, with a sample size equal to 5 and the number of samples ranging from 1 to 1000, the following four scenarios exhibit the same pattern:  
+Images with col10 row8, cut1 combination.  
+Images with col5 row2, cut1 combination.  
+Images with col10 row8, cut2 combination.  
+Images with col5 row2, cut2 combination.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In all of these cases, it is observed that as the number of samples extracted increases from day 1 to day 3, the mean of the sample means ultimately converges to the true mean.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;When using the data obtained through the PM in Simple Random Sampling without replacement, with a sample size equal to 5 and the number of samples ranging from 1 to 1000, the following four scenarios exhibit the same pattern:  
+Images with col10 row8, cut1 combination.  
+Images with col5 row2, cut1 combination.  
+Images with col10 row8, cut2 combination.  
+Images with col5 row2, cut2 combination.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In all of these cases, it is observed that when edge factors are taken into account, from day 1 to day 3, as the number of samples extracted increases, the mean of the sample means will eventually converge to a specific mean. Initially, this mean is not significantly different from the true mean, but as time progresses, the deviation gradually becomes larger. However, when edge factors are not considered, from day 1 to day 3, as the number of samples extracted increases, the mean of the sample means will also eventually converge to a specific mean. Nonetheless, initially, this mean is significantly different from the true mean, and as time passes, the deviation becomes even larger.  
+4.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;When using the data obtained through the PAA in Simple Random Sampling without replacement, with a sample size equal to 10 and the number of samples ranging from 1 to 1000, the following four scenarios exhibit the same pattern:  
+Images with col10 row8, cut1 combination.  
+Images with col5 row2, cut1 combination.  
+Images with col10 row8, cut2 combination.  
+Images with col5 row2, cut2 combination.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In all of these cases, from day 1 to day 3, it consistently shows that as the number of samples extracted increases, the mean of the sample means eventually converges to the true mean. Compared to the condition with a sample size of 5, there is a reduction in the variance between the mean of the sample means and the true mean. This suggests that the predicted values are more likely to be close to the true mean.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;When using the data obtained through the PM in Simple Random Sampling without replacement, with a sample size equal to 10 and the number of samples ranging from 1 to 1000, the following four scenarios exhibit the same pattern:  
+Images with col10 row8, cut1 combination.  
+Images with col5 row2, cut1 combination.  
+Images with col10 row8, cut2 combination.  
+Images with col5 row2, cut2 combination.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In all of these cases, when considering edge factors, it is observed that from day 1 to day 3, as the number of samples extracted increases, the mean of the sample means eventually converges to a specific mean. Initially, this mean is not significantly different from the true mean, but as time progresses, the deviation gradually becomes larger. 
+Compared to the condition with a sample size of 5, there is a reduction in the variance between the mean of the sample means and the true mean. This implies that the predicted values are more likely to be close to the mean.Conversely, when not considering edge factors, it is still observed that from day 1 to day 3, as the number of samples extracted increases, the mean of the sample means eventually converges to a specific mean. However, initially, this mean is significantly different from the true mean, and as time goes on, the deviation becomes even larger. Similarly, there is a reduction in the variance between the mean of the sample means and the true mean, suggesting that the predicted values are more likely to be close to the mean.  
+5.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;When utilizing data obtained through the PAA in Stratified Sampling with replacement, with a sample size of 5 and the number of samples ranging from 1 to 1000, the following four scenarios consistently demonstrate a similar trend:  
+Images with the col10 row8, cut1 combination.  
+Images with the col5 row2, cut1 combination.  
+Images with the col10 row8, cut2 combination.  
+Images with the col5 row2, cut2 combination.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In all of these cases, it is observed that from day 1 to day 3, as the number of samples extracted increases, the mean of the sample means eventually converges to a specific mean. Over this period, the mean does deviate from the true mean, but the deviation is not significant.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;When using the data obtained through the PM in Stratified Sampling with replacement, with a sample size of 5 and the number of samples ranging from 1 to 1000, the following four scenarios consistently exhibit the same pattern:  
+Images with col10 row8, cut1 combination.  
+Images with col5 row2, cut1 combination.  
+Images with col10 row8, cut2 combination.  
+Images with col5 row2, cut2 combination.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In all of these cases, when considering edge factors, it is observed that from day 1 to day 3, as the number of samples extracted increases, the mean of the sample means eventually converges to a specific mean. Over this period, the mean initially has a minor deviation from the true mean, but as time progresses, the deviation becomes significantly larger.
+However, when not considering edge factors, it is still observed that from day 1 to day 3, as the number of samples extracted increases, the mean of the sample means eventually converges to a specific mean. Initially, there is a minor deviation from the true mean, but as time goes on, the deviation gradually becomes significantly larger.  
+6.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;When utilizing data obtained through the PAA in Stratified Sampling with replacement, with a sample size of 10 and the number of samples ranging from 1 to 1000, the following four scenarios consistently demonstrate a similar trend:  
+Images with the col10 row8, cut1 combination.  
+Images with the col5 row2, cut1 combination.  
+Images with the col10 row8, cut2 combination.  
+Images with the col5 row2, cut2 combination.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In all of these cases, it is observed that from day 1 to day 3, as the number of samples extracted increases, the mean of the sample means eventually converges to a specific mean. Over this period, the mean does deviate from the true mean, but the deviation is not significant.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;When using the data obtained through the PM in Stratified Sampling with replacement, with a sample size of 10 and the number of samples ranging from 1 to 1000, the following four scenarios consistently exhibit the same pattern:  
+Images with col10 row8, cut1 combination.  
+Images with col5 row2, cut1 combination.  
+Images with col10 row8, cut2 combination.  
+Images with col5 row2, cut2 combination.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In all of these cases, when considering edge factors, it is observed that from day 1 to day 3, as the number of samples extracted increases, the mean of the sample means eventually converges to a specific mean. Over this period, the mean initially has a minor deviation from the true mean, but as time progresses, the deviation becomes significantly larger. However, when not considering edge factors, it is still observed that from day 1 to day 3, as the number of samples extracted increases, the mean of the sample means eventually converges to a specific mean. Initially, there is a minor deviation from the true mean, but as time goes on, the deviation gradually becomes significantly larger.  
+7.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;When utilizing data obtained through the PAA in Stratified Sampling without replacement, with a sample size of 5 and the number of samples ranging from 1 to 1000, the following four scenarios consistently demonstrate a similar trend:  
+Images with the col10 row8, cut1 combination.  
+Images with the col5 row2, cut1 combination.  
+Images with the col10 row8, cut2 combination.  
+Images with the col5 row2, cut2 combination.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In all of these cases, it is observed that from day 1 to day 3, as the number of samples extracted increases, the mean of the sample means eventually converges to a specific mean. Over this period, the mean does deviate from the true mean, but the deviation is not significant.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;When using the data obtained through the PM in Stratified Sampling without replacement, with a sample size of 5 and the number of samples ranging from 1 to 1000, the following four scenarios consistently exhibit the same pattern:  
+Images with col10 row8, cut1 combination.  
+Images with col5 row2, cut1 combination.  
+Images with col10 row8, cut2 combination.  
+Images with col5 row2, cut2 combination.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In all of these cases, when considering edge factors, it is observed that from day 1 to day 3, as the number of samples extracted increases, the mean of the sample means eventually converges to a specific mean. Over this period, the mean initially has a minor deviation from the true mean, but as time progresses, the deviation becomes significantly larger.
+However, when not considering edge factors, it is still observed that from day 1 to day 3, as the number of samples extracted increases, the mean of the sample means eventually converges to a specific mean. Initially, there is a minor deviation from the true mean, but as time goes on, the deviation gradually becomes significantly larger.  
+8.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;When utilizing data obtained through the PAA in Stratified Sampling without replacement, with a sample size of 10 and the number of samples ranging from 1 to 1000, the following four scenarios consistently demonstrate a similar trend:  
+Images with the col10 row8, cut1 combination.  
+Images with the col5 row2, cut1 combination.  
+Images with the col10 row8, cut2 combination.  
+Images with the col5 row2, cut2 combination.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In all of these cases, it is observed that from day 1 to day 3, as the number of samples extracted increases, the mean of the sample means eventually converges to a specific mean. Over this period, the mean does deviate from the true mean, but the deviation is not significant.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;When using the data obtained through the PM in Stratified Samplingout with replacement, with a sample size of 10 and the number of samples ranging from 1 to 1000, the following four scenarios consistently exhibit the same pattern:  
+Images with col10 row8, cut1 combination.  
+Images with col5 row2, cut1 combination.  
+Images with col10 row8, cut2 combination.  
+Images with col5 row2, cut2 combination.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In all of these cases, when considering edge factors, it is observed that from day 1 to day 3, as the number of samples extracted increases, the mean of the sample means eventually converges to a specific mean. Over this period, the mean initially has a minor deviation from the true mean, but as time progresses, the deviation becomes significantly larger.
+However, when not considering edge factors, it is still observed that from day 1 to day 3, as the number of samples extracted increases, the mean of the sample means eventually converges to a specific mean. Initially, there is a minor deviation from the true mean, but as time goes on, the deviation gradually becomes significantly larger.  
+
+# Discussion  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Based on the comparative results, the PAA method demonstrates significant advantages over PM in terms of image recognition sensitivity. PAA's superior image recognition sensitivity over PM is attributed to the fact that PAA magnifies images to the pixel level, making many details easier to discern. Additionally, PAA also outperforms PM in terms of efficiency, as most of its processes are automated using computer programs after parameter adjustments are made as per requirements. The performance in terms of results is also noteworthy:  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;These two advantages mentioned above become particularly prominent when dealing with a large volume of images.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In the case of Simple Random Sampling, whether with or without replacement, PAA's data performance tends to closely align with the true values, without exhibiting significant deviations as seen in PM data.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In the case of Stratified Sampling, whether with or without replacement, PAA's data results show minimal deviations from the true values, while PM data exhibits relatively significant deviations.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Both methods exhibit deviations in Stratified Sampling due to the sampling proportions generated during the adaptation of the sample size. For instance, if the weed density proportions are set at 0.3 for high, 0.25 for medium, and 0.45 for low, when a sample size of 5 is designated, a problem arises. Rounding these proportions to obtain whole numbers for sampling can lead to sample bias. When such biased samples accumulate to a certain extent, it can cause the overall values to deviate from the true values.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The reason for the deviations in the final convergence results can be attributed to data statistics. PAA achieves the allocation of all marked points into the grid, while PM needs to consider the attribution of points that are divided into multiple segments. This process can result in data loss or double counting, especially when there are a large number of plants in the images. For example, the deviation is most pronounced in all day 3 images, as day 3 has more plants compared to day 1 and day 2.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The points mentioned above are sufficient to demonstrate the advantages of PAA. However, it's also important to be aware of the limitations of PAA:  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;In certain specific scenarios, the manner in which images are cut can have an impact on the accuracy of Pixel-Level Image Analysis and Annotation (PAA). For instance, when pixel markers are located close to the image edges and the chosen cut strategy fails to encompass these edge pixels, it can result in the loss of statistical data. However, this error can be mitigated by fine-tuning the placement of markers towards the center of the image or by ensuring that the grid shape remains as close to a square as possible.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This report aims to provide comprehensive evidence in support of the recognition of PAA, but it acknowledges that there may be situations where PAA cannot be employed, warranting further research. The report generates output using R, employing the 'seed()' function to ensure uniformity in random results. In practical applications, biases may occur, necessitating further observation and investigation.  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;It should be noted that the development of PAA has embraced machine learning technology. By analyzing images at the pixel level, it transforms image data of the target crops into a cloud. The PAA markers are applied to the cloud center. This approach eliminates the need for manual labeling and counting during the sampling process, allowing for the direct generation of a database. This not only saves time but also reduces costs and manpower.  
+
+# Conclusion  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Based on the entirety of the investigation results, it is evident that Pixel-Level Image Analysis and Annotation (PAA) holds advantages over PM in terms of both sensitivity to image details and processing efficiency. Furthermore, the characteristics of PAA result in data generated through it not requiring consideration of edge plant distribution issues, enhancing the precision of sampling studies.
+
+# Data Availability
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;All images, data, and results used in this report have been uploaded to __file1__ \hyperref[ref5]{[5]}. The specific details of  __file1__ \hyperref[ref5]{[5]} are as follows:  
+
+# Availability of Source Code and Requirements
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;All codes used in this report have been uploaded to __file2__ \hyperref[ref16]{[16]}. The specific details of  __file2__ \hyperref[ref16]{[16]} are as follows: 
+
+# Abbreviations
+PAA: The Pixel-Level Image Analysis and Annotation  
+PM: The previous method  
+CLT: The Central Limit Theorem  
+RGB: Red, Green, Blue  
+
+# Acknowledgements
+
+\newpage
+# References {#refs}
+\label{ref1}1. Lyon, RF 2006, ‘A brief history of ‘pixel’, IS&T/SPIE Symposium on Electronic Imaging, San Jose, California.  
+\label{ref2}2. Python1  
+\label{ref3}3. PAApython  
+\label{ref4}4. pythoncheck  
+\label{ref5}5. file1  
+\label{ref6}6. peatear  
+\label{ref7}7. Johnson, O (Oliver T 2004, Information theory and the central limit theorem, Imperial College Press, London.  
+\label{ref8}8. R code1  
+\label{ref9}9. R code2  
+\label{ref10}10. R code3  
+\label{ref11}11. R code4  
+\label{ref12}12. R code5  
+\label{ref13}13. R code6  
+\label{ref14}14. R code7  
+\label{ref15}15. R code8  
+\label{ref16}16. file2  
+\label{ref16}16. Result_Chart

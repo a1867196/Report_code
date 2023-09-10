@@ -1,0 +1,58 @@
+a <- read.csv("data1.csv")
+par(mfrow = c(1, 2))
+set.seed(123)
+sample_size <- 
+num_samples <- 
+true_mean <- 
+
+element_proportions <- table(a$D) / nrow(a)
+stratified_sample <- function() {
+  sampled_indices <- integer(0)
+  for (element in unique(a$D)) {
+    element_indices <- which(a$D == element)
+    element_sample_size <- round(sample_size * element_proportions[element])
+    if (element_sample_size > 0) {
+      sampled_indices <- c(sampled_indices, sample(element_indices, element_sample_size, replace = FALSE))
+    }
+  }
+  return(a[sampled_indices, ])
+}
+
+mean_of_sample_mean <- numeric(num_samples)
+for (i in 1:num_samples) {
+  sample_mean <- numeric(i)
+  for (j in 1:i) {
+  sampled_data <- stratified_sample()
+  b = sampled_data$HC + sampled_data$MH + sampled_data$HR
+  sample_mean[j] <- mean(b)
+  }
+  mean_of_sample_mean[i] <- mean(sample_mean)
+}
+plot(1:num_samples, mean_of_sample_mean, type = "p", pch = 19,
+     xlab = "Number of Samples", ylab = "Mean of Sample Means",
+     main = "col10row8_day1_cut1",
+     col = "blue")
+abline(h = true_mean, col = "red")
+legend("topright", 
+       legend = c("Sample Mean", "True Mean"),
+       col = c("blue", "red"), lty = c(1,1))
+
+
+mean_of_sample_mean <- numeric(num_samples)
+for (i in 1:num_samples) {
+  sample_mean <- numeric(i)
+  for (j in 1:i) {
+  sampled_data <- stratified_sample()
+  c = sampled_data$HC + sampled_data$MH
+  sample_mean[j] <- mean(c)
+  }
+  mean_of_sample_mean[i] <- mean(sample_mean)
+}
+plot(1:num_samples, mean_of_sample_mean, type = "p", pch = 19,
+     xlab = "Number of Samples", ylab = "Mean of Sample Means",
+     main = "col10row8_day1_cut1",
+     col = "blue")
+abline(h = true_mean, col = "red")
+legend("topright", 
+       legend = c("Sample Mean", "True Mean"),
+       col = c("blue", "red"), lty = c(1,1))

@@ -1,0 +1,38 @@
+sample_size <- 
+num_samples <- 1:1000
+data0 <- read.csv("day1_red_points_PAAsummary_cut1.csv")
+grouped_data <- split(data0, data0[, 1])
+par(mfrow = c(1, 2))
+set.seed(2023)
+a = grouped_data[[1]]
+sample_means <- numeric(length(num_samples))
+for (j in num_samples) {
+  means <- replicate(j, mean(sample(a$Z_Sum, size = sample_size, replace = FALSE)))
+  sample_means[j] <- mean(means)
+  }
+plot(num_samples, sample_means, type = "p", pch = 16, col = "blue",
+     xlab = "Number of Samples", ylab = "Mean of Sample Mean",
+     main = "PAA_col10row8_day1_cut1",
+     yaxt = "n")
+true_mean <- mean(a$Z_Sum)
+abline(h = true_mean, col = "red")
+legend("topright", legend = c("Sample Mean", "True Mean"),
+       col = c("blue", "red"), lty = c(1,1))
+axis(2, at = seq(0, 10, by = 0.1))
+
+a = grouped_data[[2]]
+sample_means <- numeric(length(num_samples))
+for (j in num_samples) {
+  means <- replicate(j, mean(sample(a$Z_Sum, size = sample_size, replace = FALSE)))
+  sample_means[j] <- mean(means)
+}
+plot(num_samples, sample_means, type = "p", pch = 16, col = "blue",
+     xlab = "Number of Samples", ylab = "Mean of Sample Mean",
+     main = "PAA_col5row2_day1_cut1",
+     yaxt = "n")  
+true_mean <- mean(a$Z_Sum)
+abline(h = true_mean, col = "red")
+legend("topright", 
+       legend = c("Sample Mean", "True Mean"),
+       col = c("blue", "red"), lty = c(1,1))
+axis(2, at = seq(0, 10, by = 0.1))
